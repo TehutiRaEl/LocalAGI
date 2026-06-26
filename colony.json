@@ -1,0 +1,15 @@
+{
+  "colony_id": "localagi",
+  "colony_name": "LocalAGI",
+  "role": "inference",
+  "description": "Local AI inference and model management colony",
+  "hive": "sovereign-hive",
+  "queen": "https://github.com/tehutirael/sovereign-hive-meta",
+  "repo": "https://github.com/tehutirael/localagi",
+  "guilds": ["inference", "models", "embeddings"],
+  "health_endpoint": "/colony/health",
+  "manifest_endpoint": "/colony/manifest",
+  "agents": ["inference-agent", "model-manager", "embedding-agent"],
+  "capabilities": ["local-inference", "model-management", "vector-embeddings"],
+  "constitution_version": "1.0.0"
+}
