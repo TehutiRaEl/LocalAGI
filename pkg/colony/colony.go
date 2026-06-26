@@ -3,9 +3,10 @@ package colony
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
+
+	fiber "github.com/gofiber/fiber/v2"
 )
 
 var startTime = time.Now()
@@ -38,18 +39,21 @@ var identity = colonyInfo{
 	ConstitutionVersion: "1.0.0",
 }
 
-func writeJSON(w http.ResponseWriter, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
+// RegisterFiberRoutes mounts the Colony Standard Layer onto the Fiber app.
+func RegisterFiberRoutes(app *fiber.App) {
+	app.Get("/colony/info", handleInfo)
+	app.Get("/colony/health", handleHealth)
+	app.Get("/colony/agents", handleAgents)
+	app.Post("/colony/events", handleEvents)
+	app.Get("/colony/manifest", handleManifest)
 }
 
-func InfoHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, identity)
+func handleInfo(c *fiber.Ctx) error {
+	return c.JSON(identity)
 }
 
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]interface{}{
+func handleHealth(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
 		"colony_id":      identity.ColonyID,
 		"status":         "healthy",
 		"uptime_seconds": int(time.Since(startTime).Seconds()),
@@ -57,48 +61,43 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func AgentsHandler(w http.ResponseWriter, r *http.Request) {
-	agents := make([]map[string]interface{}, len(identity.Agents))
+func handleAgents(c *fiber.Ctx) error {
+	agents := make([]fiber.Map, len(identity.Agents))
 	for i, a := range identity.Agents {
-		agents[i] = map[string]interface{}{
+		agents[i] = fiber.Map{
 			"id":           a,
 			"status":       "active",
 			"capabilities": identity.Capabilities,
 		}
 	}
-	writeJSON(w, map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"colony_id": identity.ColonyID,
 		"agents":    agents,
 	})
 }
 
-func EventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func handleEvents(c *fiber.Ctx) error {
 	var body map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+	if err := json.Unmarshal(c.Body(), &body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "bad request"})
 	}
 	body["ts"] = time.Now().UTC().Format(time.RFC3339)
 	events = append(events, body)
 	if len(events) > 100 {
 		events = events[1:]
 	}
-	writeJSON(w, map[string]interface{}{"status": "accepted"})
+	return c.JSON(fiber.Map{"status": "accepted"})
 }
 
-func ManifestHandler(w http.ResponseWriter, r *http.Request) {
+func handleManifest(c *fiber.Ctx) error {
 	var soulContent string
 	if data, err := os.ReadFile("soul.md"); err == nil {
 		soulContent = string(data)
 	}
-	writeJSON(w, map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"colony":    identity,
 		"soul_hash": hashString(soulContent),
-		"endpoints": map[string]string{
+		"endpoints": fiber.Map{
 			"info":     "/colony/info",
 			"health":   "/colony/health",
 			"agents":   "/colony/agents",
@@ -115,13 +114,4 @@ func hashString(s string) string {
 		h *= 16777619
 	}
 	return fmt.Sprintf("%08x", h)
-}
-
-// RegisterRoutes wires colony endpoints onto an http.ServeMux.
-func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/colony/info", InfoHandler)
-	mux.HandleFunc("/colony/health", HealthHandler)
-	mux.HandleFunc("/colony/agents", AgentsHandler)
-	mux.HandleFunc("/colony/events", EventsHandler)
-	mux.HandleFunc("/colony/manifest", ManifestHandler)
 }
