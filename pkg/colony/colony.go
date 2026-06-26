@@ -2,6 +2,7 @@ package colony
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -12,34 +13,35 @@ var startTime = time.Now()
 var events []map[string]interface{}
 
 type colonyInfo struct {
-	ColonyID    string   `json:"colony_id"`
-	ColonyName  string   `json:"colony_name"`
-	Role        string   `json:"role"`
-	Description string   `json:"description"`
-	Hive        string   `json:"hive"`
-	Repo        string   `json:"repo"`
-	Guilds      []string `json:"guilds"`
-	Agents      []string `json:"agents"`
-	Capabilities []string `json:"capabilities"`
-	ConstitutionVersion string `json:"constitution_version"`
+	ColonyID            string   `json:"colony_id"`
+	ColonyName          string   `json:"colony_name"`
+	Role                string   `json:"role"`
+	Description         string   `json:"description"`
+	Hive                string   `json:"hive"`
+	Repo                string   `json:"repo"`
+	Guilds              []string `json:"guilds"`
+	Agents              []string `json:"agents"`
+	Capabilities        []string `json:"capabilities"`
+	ConstitutionVersion string   `json:"constitution_version"`
 }
 
 var identity = colonyInfo{
-	ColonyID:    "localagi",
-	ColonyName:  "LocalAGI",
-	Role:        "inference",
-	Description: "Local AI inference and model management colony",
-	Hive:        "sovereign-hive",
-	Repo:        "https://github.com/tehutirael/localagi",
-	Guilds:      []string{"inference", "models", "embeddings"},
-	Agents:      []string{"inference-agent", "model-manager", "embedding-agent"},
-	Capabilities: []string{"local-inference", "model-management", "vector-embeddings"},
+	ColonyID:            "localagi",
+	ColonyName:          "LocalAGI",
+	Role:                "inference",
+	Description:         "Local AI inference and model management colony",
+	Hive:                "sovereign-hive",
+	Repo:                "https://github.com/tehutirael/localagi",
+	Guilds:              []string{"inference", "models", "embeddings"},
+	Agents:              []string{"inference-agent", "model-manager", "embedding-agent"},
+	Capabilities:        []string{"local-inference", "model-management", "vector-embeddings"},
 	ConstitutionVersion: "1.0.0",
 }
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(v) //nolint:errcheck
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
