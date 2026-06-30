@@ -1,13 +1,38 @@
 package colony
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"os"
+	"strings"
 	"time"
 
 	fiber "github.com/gofiber/fiber/v2"
 )
+
+func verifyHiveSignature(sigHeader string, body []byte) bool {
+	secret := os.Getenv("HIVE_JWT_SECRET")
+	if secret == "" {
+		return true // permissive dev mode
+	}
+	if !strings.HasPrefix(sigHeader, "sha256=") {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	expectedHex := hex.EncodeToString(mac.Sum(nil))
+	actualHex := sigHeader[7:] // strip "sha256=" prefix
+	expectedBytes, err1 := hex.DecodeString(expectedHex)
+	actualBytes, err2 := hex.DecodeString(actualHex)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	return hmac.Equal(actualBytes, expectedBytes)
+}
 
 var colonyInfo = fiber.Map{
 	"colony_id":   "localagi",
@@ -50,16 +75,24 @@ func handleAgents(c *fiber.Ctx) error {
 }
 
 func handleEvents(c *fiber.Ctx) error {
+	body := c.Body()
+	if !verifyHiveSignature(c.Get("X-Hive-Signature"), body) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":     "Invalid hive signature",
+			"colony_id": "localagi",
+		})
+	}
 	var payload map[string]interface{}
-	if err := json.Unmarshal(c.Body(), &payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
 	}
 	h := fnv.New32a()
 	b, _ := json.Marshal(payload)
 	h.Write(b)
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-		"accepted": true,
-		"event_id": fmt.Sprintf("%08x", h.Sum32()),
+		"accepted":  true,
+		"event_id":  fmt.Sprintf("%08x", h.Sum32()),
+		"colony_id": "localagi",
 	})
 }
 
