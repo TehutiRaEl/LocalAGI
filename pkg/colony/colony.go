@@ -53,6 +53,41 @@ func RegisterFiberRoutes(app *fiber.App) {
 	app.Get("/colony/agents", handleAgents)
 	app.Post("/colony/events", handleEvents)
 	app.Get("/colony/manifest", handleManifest)
+	app.Get("/colony/capabilities", handleCapabilities)
+}
+
+var startTime = time.Now()
+
+func soulHash() string {
+	data, err := os.ReadFile("soul.md")
+	if err != nil {
+		return "none"
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])[:16]
+}
+
+// handleCapabilities mirrors THEHIVE's /colony/capabilities shape:
+// colony.json identity + live status/uptime/soul hash + endpoint pointers.
+func handleCapabilities(c *fiber.Ctx) error {
+	caps := fiber.Map{}
+	for k, v := range colonyInfo {
+		caps[k] = v
+	}
+	if data, err := os.ReadFile("colony.json"); err == nil {
+		var identity map[string]interface{}
+		if json.Unmarshal(data, &identity) == nil {
+			for k, v := range identity {
+				caps[k] = v
+			}
+		}
+	}
+	caps["status"] = "healthy"
+	caps["uptime_s"] = float64(int(time.Since(startTime).Seconds()*10)) / 10
+	caps["soul_md_hash"] = soulHash()
+	caps["health_endpoint"] = "/colony/health"
+	caps["capabilities_endpoint"] = "/colony/capabilities"
+	return c.JSON(caps)
 }
 
 func handleInfo(c *fiber.Ctx) error {
@@ -100,12 +135,13 @@ func handleManifest(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"colony_id": "localagi",
 		"endpoints": fiber.Map{
-			"info":     "/colony/info",
-			"health":   "/colony/health",
-			"agents":   "/colony/agents",
-			"events":   "/colony/events",
-			"manifest": "/colony/manifest",
+			"info":         "/colony/info",
+			"health":       "/colony/health",
+			"agents":       "/colony/agents",
+			"events":       "/colony/events",
+			"manifest":     "/colony/manifest",
+			"capabilities": "/colony/capabilities",
 		},
-		"constitution": "https://raw.githubusercontent.com/TehutiRaEl/-sovereign-hive-meta/main/soul.md",
+		"constitution": "https://raw.githubusercontent.com/TehutiRaEl/THEHIVE/main/soul.md",
 	})
 }
