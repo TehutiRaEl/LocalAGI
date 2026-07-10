@@ -53,6 +53,7 @@ func RegisterFiberRoutes(app *fiber.App) {
 	app.Get("/colony/agents", handleAgents)
 	app.Post("/colony/events", handleEvents)
 	app.Get("/colony/manifest", handleManifest)
+	app.Get("/colony/capabilities", handleCapabilities)
 }
 
 func handleInfo(c *fiber.Ctx) error {
@@ -100,12 +101,27 @@ func handleManifest(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"colony_id": "localagi",
 		"endpoints": fiber.Map{
-			"info":     "/colony/info",
-			"health":   "/colony/health",
-			"agents":   "/colony/agents",
-			"events":   "/colony/events",
-			"manifest": "/colony/manifest",
+			"info":         "/colony/info",
+			"health":       "/colony/health",
+			"agents":       "/colony/agents",
+			"events":       "/colony/events",
+			"manifest":     "/colony/manifest",
+			"capabilities": "/colony/capabilities",
 		},
 		"constitution": "https://raw.githubusercontent.com/TehutiRaEl/-sovereign-hive-meta/main/soul.md",
+	})
+}
+
+func handleCapabilities(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"colony_id": "localagi",
+		"capabilities": []fiber.Map{
+			{"name": "task_execution", "description": "Execute multi-step agent tasks autonomously"},
+			{"name": "skill_management", "description": "Load, register, and invoke skill modules"},
+			{"name": "knowledge_integration", "description": "Query and update the local knowledge base"},
+			{"name": "agent_orchestration", "description": "Coordinate multiple sub-agents toward a goal"},
+		},
+		"version":  "1.0.0",
+		"protocol": "sovereign-hive-v11",
 	})
 }
