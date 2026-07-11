@@ -82,6 +82,17 @@ func handleCapabilities(c *fiber.Ctx) error {
 			}
 		}
 	}
+	// Sonnet's structured capability catalog (PR #6) — colony.json identity
+	// may override it by carrying its own "capabilities" key
+	if _, ok := caps["capabilities"]; !ok {
+		caps["capabilities"] = []fiber.Map{
+			{"name": "task_execution", "description": "Execute multi-step agent tasks autonomously"},
+			{"name": "skill_management", "description": "Load, register, and invoke skill modules"},
+			{"name": "knowledge_integration", "description": "Query and update the local knowledge base"},
+			{"name": "agent_orchestration", "description": "Coordinate multiple sub-agents toward a goal"},
+		}
+	}
+	caps["protocol"] = "sovereign-hive-v11"
 	caps["status"] = "healthy"
 	caps["uptime_s"] = float64(int(time.Since(startTime).Seconds()*10)) / 10
 	caps["soul_md_hash"] = soulHash()
